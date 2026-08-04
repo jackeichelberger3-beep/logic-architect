@@ -1,1 +1,752 @@
-<!DOCTYPE html><html><head><title>test</title></head><body>Logic Architect</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logic Architect — Standalone</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;background:#18181b;color:#e4e4e7}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+#app{display:flex;flex-direction:column;height:100vh;width:100vw;background:#18181b}
+#toolbar{height:44px;background:#09090b;border-bottom:1px solid #27272a;display:flex;align-items:center;gap:4px;padding:0 8px;font-size:12px;flex-shrink:0}
+.tbtn{padding:4px 10px;border-radius:6px;background:#27272a;color:#d4d4d8;border:none;cursor:pointer;font-size:12px;transition:background .12s}
+.tbtn:hover{background:#3f3f46}
+.tbtn.active{background:#16a34a;color:#fff}
+.tbtn:disabled{opacity:.4;cursor:not-allowed}
+.tsep{width:1px;height:20px;background:#27272a;margin:0 4px}
+#stats{margin-left:auto;color:#71717a;font-size:11px;display:flex;gap:12px}
+#stats b{color:#d4d4d8}
+#stats .act{color:#22c55e}
+#main{display:flex;flex:1;overflow:hidden}
+#palette{width:224px;background:#09090b;border-right:1px solid #27272a;display:flex;flex-direction:column;flex-shrink:0}
+#palette-head{padding:8px;border-bottom:1px solid #27272a;display:flex;justify-content:space-between;align-items:center}
+#palette-head span{font-size:11px;font-weight:600;color:#d4d4d8;text-transform:uppercase;letter-spacing:.05em}
+#palette-close{color:#71717a;background:none;border:none;cursor:pointer;font-size:14px}
+#cat-row{display:flex;flex-wrap:wrap;gap:4px;padding:8px;border-bottom:1px solid #27272a}
+.cat-btn{padding:2px 6px;font-size:10px;border-radius:4px;background:#18181b;color:#71717a;border:none;cursor:pointer}
+.cat-btn.on{background:#3f3f46;color:#f4f4f5}
+#palette-list{flex:1;overflow-y:auto;padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;align-content:start}
+.pitem{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;border-radius:6px;background:#18181b;border:1px solid #27272a;cursor:pointer;transition:border-color .12s,background .12s}
+.pitem:hover{border-color:#52525b;background:#27272a}
+.pitem.custom{background:#1e1b4b;border-color:#3730a3}
+.pitem.custom:hover{border-color:#4338ca}
+.pswatch{width:40px;height:28px;border-radius:4px;border:1px solid #3f3f46;display:flex;align-items:center;background:#1c1c1f}
+.pswatch i{display:block;height:2px;width:100%}
+.pitem span{font-size:9px;color:#a1a1aa;text-align:center;line-height:1.1}
+#palette-toggle{width:24px;background:#09090b;border-right:1px solid #27272a;color:#71717a;border:none;cursor:pointer;font-size:12px;flex-shrink:0}
+#palette-toggle:hover{color:#d4d4d8}
+#canvas-wrap{position:relative;flex:1;overflow:hidden;background:#18181b}
+#canvas{position:absolute;inset:0;cursor:grab;overflow:hidden;
+  background-image:radial-gradient(circle,#2a2a2e 1px,transparent 1px);background-size:24px 24px}
+#canvas.placing{cursor:copy}
+#wires-svg{position:absolute;inset:0;overflow:visible;pointer-events:none}
+#wires-svg path{pointer-events:stroke;cursor:pointer}
+#gates-layer{position:absolute;inset:0;transform-origin:0 0;pointer-events:none}
+.gate{position:absolute;pointer-events:auto;user-select:none}
+.gate.selected{outline:2px solid #d4d4d8;outline-offset:2px;border-radius:8px}
+.gate.multi{outline:2px solid #3b82f6;outline-offset:2px;border-radius:8px}
+.gate-body{position:relative;width:100%;height:100%;border-radius:8px;border:1px solid #3f3f46;background:#1c1c1f;box-shadow:0 2px 6px rgba(0,0,0,.5);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gate-accent{position:absolute;top:0;left:0;right:0;height:4px}
+.gate-label{position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:9px;font-weight:600;color:#a1a1aa;letter-spacing:.03em;pointer-events:none}
+.gdel{position:absolute;top:-8px;right:-8px;width:16px;height:16px;border-radius:50%;background:#dc2626;color:#fff;font-size:9px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.6}
+.gdel:hover{opacity:1}
+.gcfg{position:absolute;top:-8px;left:-8px;width:16px;height:16px;border-radius:50%;background:#52525b;color:#fff;font-size:9px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.6}
+.gcfg:hover{opacity:1}
+.port{position:absolute;width:12px;height:12px;border-radius:50%;border:2px solid #71717a;background:#27272a;cursor:crosshair;transition:transform .1s}
+.port:hover{transform:scale(1.25)}
+.port.active{background:#22c55e;border-color:#86efac;box-shadow:0 0 8px #22c55e}
+#hud{position:absolute;top:8px;left:8px;display:flex;gap:8px;align-items:center;z-index:30}
+.hud-chip{font-size:10px;color:#71717a;background:rgba(9,9,11,.7);padding:2px 8px;border-radius:4px}
+.hud-chip.act{color:#22c55e}
+.hud-chip.blue{color:#3b82f6}
+.hud-chip.amber{color:#f59e0b}
+.hud-btn{font-size:10px;color:#a1a1aa;background:rgba(9,9,11,.7);padding:2px 8px;border-radius:4px;border:none;cursor:pointer}
+.hud-btn:hover{color:#f4f4f5}
+#minimap{position:absolute;bottom:12px;right:12px;width:160px;background:rgba(9,9,11,.9);border:1px solid #3f3f46;border-radius:6px;padding:4px;z-index:30}
+#minimap .mm-title{font-size:9px;color:#71717a;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+#mm-inner{position:relative;background:#09090b;border-radius:4px;overflow:hidden;height:110px;cursor:pointer}
+#mm-view{position:absolute;border:1px solid rgba(34,197,94,.7);background:rgba(34,197,94,.1);pointer-events:none}
+#gate-list{position:absolute;top:56px;right:12px;width:208px;background:rgba(9,9,11,.95);border:1px solid #3f3f46;border-radius:6px;z-index:30;max-height:320px;display:flex;flex-direction:column}
+#gate-list .gl-head{display:flex;justify-content:space-between;align-items:center;padding:4px 8px;border-bottom:1px solid #27272a;font-size:10px;color:#a1a1aa;text-transform:uppercase}
+#gate-list .gl-close{background:none;border:none;color:#71717a;cursor:pointer;font-size:12px}
+#gate-list .gl-body{overflow-y:auto}
+.gl-item{width:100%;display:flex;align-items:center;gap:8px;padding:4px 8px;background:none;border:none;cursor:pointer;text-align:left}
+.gl-item:hover{background:#27272a}
+.gl-dot{width:12px;height:12px;border-radius:2px;flex-shrink:0}
+.gl-item span.lbl{font-size:10px;color:#d4d4d8}
+.gl-item span.pos{font-size:9px;color:#52525b;margin-left:auto}
+.note{position:absolute;width:140px;background:#fde047;color:#1c1917;border-radius:6px;padding:6px;box-shadow:0 4px 12px rgba(0,0,0,.4);pointer-events:auto;font-size:11px}
+.note textarea{width:100%;background:transparent;border:none;outline:none;resize:none;font-family:inherit;font-size:11px;color:#1c1917;min-height:40px}
+.note .ndel{position:absolute;top:-8px;right:-8px;width:16px;height:16px;border-radius:50%;background:#dc2626;color:#fff;border:none;font-size:9px;cursor:pointer}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
+#modal-card{background:#09090b;border:1px solid #3f3f46;border-radius:10px;width:100%;max-width:768px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden}
+#modal-head{padding:12px;border-bottom:1px solid #27272a;display:flex;justify-content:space-between;align-items:center}
+#modal-head h2{font-size:14px;font-weight:600;color:#e4e4e7}
+#modal-close{background:none;border:none;color:#71717a;cursor:pointer;font-size:16px}
+#modal-body{overflow-y:auto;padding:12px;display:grid;grid-template-columns:1fr;gap:8px}
+.tpl{padding:12px;border-radius:8px;background:#18181b;border:1px solid #27272a;cursor:pointer;text-align:left}
+.tpl:hover{border-color:#52525b;background:#27272a}
+.tpl .t-name{font-size:13px;color:#e4e4e7;font-weight:500}
+.tpl .t-desc{font-size:11px;color:#71717a;margin-top:2px}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#27272a;color:#f4f4f5;font-size:12px;padding:6px 12px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.4);z-index:60;transition:opacity .2s}
+.led-dot{border-radius:50%;border:2px solid #52525b;transition:all .1s}
+.term{width:100%;height:100%;background:#000;color:#22c55e;font-family:ui-monospace,monospace;font-size:9px;line-height:1.15;display:flex;flex-direction:column}
+.term-out{flex:1;overflow-y:auto;padding:4px 6px;white-space:pre-wrap;word-break:break-word}
+.term-in{display:flex;align-items:center;padding:1px 6px;border-top:1px solid #14532d}
+.term-in span{color:#16a34a}
+.term-in input{flex:1;background:transparent;border:none;outline:none;color:#22c55e;font-family:ui-monospace,monospace;font-size:9px;margin-left:4px}
+.term-nopower{width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;color:#3f3f46;font-size:11px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar"></div>
+  <div id="main">
+    <div id="palette">
+      <div id="palette-head"><span>Components</span><button id="palette-close">✕</button></div>
+      <div id="cat-row"></div>
+      <div id="palette-list"></div>
+    </div>
+    <button id="palette-toggle" style="display:none">›</button>
+    <div id="canvas-wrap">
+      <div id="canvas">
+        <svg id="wires-svg"><g id="wires-g"></g></svg>
+        <div id="gates-layer"></div>
+        <div id="hud"></div>
+        <div id="gate-list" style="display:none"></div>
+        <div id="minimap"><div class="mm-title">Map</div><div id="mm-inner"></div></div>
+      </div>
+    </div>
+  </div>
+  <div id="toast" style="opacity:0"></div>
+</div>
+<div id="modal" style="display:none"><div id="modal-card"><div id="modal-head"><h2>Circuit Templates</h2><button id="modal-close">✕</button></div><div id="modal-body"></div></div></div>
+<script>
+"use strict";
+/* ===================== Helpers ===================== */
+let _id=1;
+const uid=(p)=>`${p}_${Date.now().toString(36)}_${_id++}`;
+function binOut(v,bits){const o=[];for(let b=0;b<bits;b++)o.push((v>>b)&1);return o}
+function binIn(inp,bits){let v=0;for(let b=0;b<bits;b++)v|=(inp[b]?1:0)<<b;return v}
+const edge=(s,key,val)=>{const prev=s[key]??0;return{rising:val&&!prev,falling:!val&&prev,prev:val}};
+
+/* ===================== Gate Definitions ===================== */
+const GATE_DEFS={
+ AND:{type:'AND',label:'AND',category:'Logic',inputs:2,outputs:1,w:74,h:50,color:'#4b5563',eval:(i,s)=>({outputs:[(i[0]&&i[1])?1:0]})},
+ NAND:{type:'NAND',label:'NAND',category:'Logic',inputs:2,outputs:1,w:74,h:50,color:'#4b5563',eval:(i,s)=>({outputs:[(i[0]&&i[1])?0:1]})},
+ NOR:{type:'NOR',label:'NOR',category:'Logic',inputs:2,outputs:1,w:74,h:50,color:'#4b5563',eval:(i,s)=>({outputs:[(i[0]||i[1])?0:1]})},
+ NOT:{type:'NOT',label:'NOT',category:'Logic',inputs:1,outputs:1,w:74,h:40,color:'#4b5563',eval:(i,s)=>({outputs:[i[0]?0:1]})},
+ OR:{type:'OR',label:'OR',category:'Logic',inputs:2,outputs:1,w:74,h:50,color:'#4b5563',eval:(i,s)=>({outputs:[(i[0]||i[1])?1:0]})},
+ XNOR:{type:'XNOR',label:'XNOR',category:'Logic',inputs:2,outputs:1,w:74,h:50,color:'#4b5563',eval:(i,s)=>({outputs:[(i[0]===i[1])?1:0]})},
+ XOR:{type:'XOR',label:'XOR',category:'Logic',inputs:2,outputs:1,w:74,h:50,color:'#4b5563',eval:(i,s)=>({outputs:[(i[0]!==i[1])?1:0]})},
+ SPLITTER:{type:'SPLITTER',label:'SPLIT',category:'Logic',inputs:1,outputs:2,w:74,h:50,color:'#4b5563',eval:(i,s)=>({outputs:[i[0]?1:0,i[0]?1:0]})},
+ CONTRADICTION:{type:'CONTRADICTION',label:'CONTRA',category:'Logic',inputs:2,outputs:1,w:84,h:50,color:'#52525b',eval:(i,s)=>{const allOn=i[0]&&i[1];const oneOff=!i[0]||!i[1];return{outputs:[(allOn&&oneOff)?1:0]}}},
+ FULL_ADDER:{type:'FULL_ADDER',label:'FADD',category:'Logic',inputs:3,outputs:2,w:84,h:60,color:'#4b5563',eval:(i,s)=>{const sum=i[0]^i[1]^i[2];const carry=(i[0]&&i[1])||(i[0]&&i[2])||(i[1]&&i[2])?1:0;return{outputs:[sum?1:0,carry]}}},
+ AND8:{type:'AND8',label:'8 AND',category:'8-Bit',inputs:8,outputs:1,w:90,h:96,color:'#52525b',eval:(i,s)=>({outputs:[i.every(v=>v)?1:0]})},
+ NAND8:{type:'NAND8',label:'8 NAND',category:'8-Bit',inputs:8,outputs:1,w:90,h:96,color:'#52525b',eval:(i,s)=>({outputs:[i.every(v=>v)?0:1]})},
+ NOR8:{type:'NOR8',label:'8 NOR',category:'8-Bit',inputs:8,outputs:1,w:90,h:96,color:'#52525b',eval:(i,s)=>({outputs:[i.some(v=>v)?0:1]})},
+ OR8:{type:'OR8',label:'8 OR',category:'8-Bit',inputs:8,outputs:1,w:90,h:96,color:'#52525b',eval:(i,s)=>({outputs:[i.some(v=>v)?1:0]})},
+ SPLIT8:{type:'SPLIT8',label:'8 SPLIT',category:'8-Bit',inputs:1,outputs:8,w:90,h:96,color:'#52525b',eval:(i,s)=>{const o=[];for(let b=0;b<8;b++)o.push(i[0]?1:0);return{outputs:o}}},
+ XOR8:{type:'XOR8',label:'8 XOR',category:'8-Bit',inputs:8,outputs:1,w:90,h:96,color:'#52525b',eval:(i,s)=>({outputs:[i.filter(v=>v).length%2?1:0]})},
+ LOADED:{type:'LOADED',label:'LOADED',category:'Memory',inputs:0,outputs:1,w:74,h:40,color:'#3f3f46',eval:(i,s)=>({outputs:[1]})},
+ SR_LATCH:{type:'SR_LATCH',label:'SR',category:'Memory',inputs:2,outputs:1,w:64,h:50,color:'#3f3f46',eval:(i,s)=>{let q=s.q||0;if(i[0])q=1;if(i[1])q=0;return{outputs:[q],state:{...s,q}}}},
+ GATED_SR:{type:'GATED_SR',label:'G-SR',category:'Memory',inputs:3,outputs:1,w:74,h:60,color:'#3f3f46',eval:(i,s)=>{let q=s.q||0;if(i[2]){if(i[0])q=1;if(i[1])q=0}return{outputs:[q],state:{...s,q}}}},
+ D_LATCH:{type:'D_LATCH',label:'D',category:'Memory',inputs:2,outputs:1,w:64,h:50,color:'#3f3f46',eval:(i,s)=>{let q=s.q||0;if(i[1])q=i[0]?1:0;return{outputs:[q],state:{...s,q}}}},
+ TOGGLE:{type:'TOGGLE',label:'TOG',category:'Memory',inputs:1,outputs:1,w:64,h:50,color:'#3f3f46',eval:(i,s)=>{let q=s.q||0;const e=edge(s,'t',i[0]);if(e.rising)q=q?0:1;return{outputs:[q],state:{...s,q,t:i[0]}}}},
+ LOGIC_MEM:{type:'LOGIC_MEM',label:'LMEM',category:'Memory',inputs:3,outputs:1,w:74,h:60,color:'#3f3f46',eval:(i,s)=>{let q=s.q||0;if(i[0]){if(i[2])q=0;else if(i[1])q=1}else q=0;return{outputs:[q],state:{...s,q}}}},
+ GENERATOR:{type:'GENERATOR',label:'GEN',category:'Power',inputs:0,outputs:1,w:74,h:50,color:'#7c2d12',eval:(i,s)=>({outputs:[1]})},
+ POWER_STATION:{type:'POWER_STATION',label:'PWR STN',category:'Power',inputs:0,outputs:2,w:84,h:60,color:'#7c2d12',eval:(i,s)=>({outputs:[1,1]})},
+ BUTTON:{type:'BUTTON',label:'BTN',category:'Power',inputs:1,outputs:1,w:64,h:50,color:'#7c2d12',render:'button',eval:(i,s)=>{const on=s.on??0;return{outputs:[(i[0]&&on)?1:0],state:{...s,on}}}},
+ LED:{type:'LED',label:'LED',category:'Display',inputs:1,outputs:0,w:60,h:60,color:'#27272a',render:'led',eval:(i,s)=>({outputs:[],state:{...s,on:i[0]?1:0}})},
+ TEXT_PANEL:{type:'TEXT_PANEL',label:'TEXT',category:'Display',inputs:1,outputs:0,w:120,h:56,color:'#27272a',render:'text',eval:(i,s)=>({outputs:[],state:{...s,on:i[0]?1:0}})},
+ SEG7:{type:'SEG7',label:'7-SEG',category:'Display',inputs:7,outputs:0,w:70,h:96,color:'#27272a',render:'seg7',eval:(i,s)=>({outputs:[],state:{...s,segs:i.slice(0,7)}})},
+ HEX_DISP:{type:'HEX_DISP',label:'HEX',category:'Display',inputs:4,outputs:0,w:64,h:90,color:'#27272a',render:'hex',eval:(i,s)=>({outputs:[],state:{...s,val:binIn(i,4)}})},
+ TERMINAL:{type:'TERMINAL',label:'TERM',category:'Display',inputs:1,outputs:0,w:260,h:170,color:'#18181b',render:'terminal',eval:(i,s)=>({outputs:[],state:{...s,power:i[0]?1:0}})},
+ COUNTER:{type:'COUNTER',label:'COUNT',category:'Counter',inputs:3,outputs:6,w:84,h:70,color:'#3730a3',eval:(i,s)=>{let c=s.c||0;const pe=edge(s,'p',i[0]),me=edge(s,'m',i[1]),re=edge(s,'r',i[2]);if(pe.rising)c=(c+1)%16;if(me.rising)c=(c+15)%16;if(re.rising)c=0;return{outputs:binOut(c,6),state:{...s,c,p:i[0],m:i[1],r:i[2]}}}},
+ NUM_COUNTER:{type:'NUM_COUNTER',label:'N-COUNT',category:'Counter',inputs:3,outputs:6,w:84,h:70,color:'#3730a3',eval:(i,s)=>{let c=s.c||0;const pe=edge(s,'p',i[0]),me=edge(s,'m',i[1]),re=edge(s,'r',i[2]);if(pe.rising)c=(c+1)%10;if(me.rising)c=(c+9)%10;if(re.rising)c=0;return{outputs:binOut(c,6),state:{...s,c,p:i[0],m:i[1],r:i[2]}}}},
+ SHIFT4:{type:'SHIFT4',label:'SH4',category:'Counter',inputs:4,outputs:4,w:74,h:60,color:'#3730a3',eval:(i,s)=>({outputs:[i[3]?1:0,i[0]?1:0,i[1]?1:0,i[2]?1:0]})},
+ SHIFT8:{type:'SHIFT8',label:'SH8',category:'Counter',inputs:4,outputs:8,w:90,h:70,color:'#3730a3',eval:(i,s)=>({outputs:[i[3]?1:0,i[0]?1:0,i[1]?1:0,i[2]?1:0,0,0,0,0]})},
+ COMPLEX_COUNTER:{type:'COMPLEX_COUNTER',label:'CCOUNT',category:'Counter',inputs:8,outputs:6,w:96,h:96,color:'#3730a3',eval:(i,s)=>{let c=s.c??binIn(i.slice(0,4),4);const pe=edge(s,'p',i[4]),me=edge(s,'m',i[5]),re=edge(s,'r',i[6]);if(re.rising)c=binIn(i.slice(0,4),4);if(pe.rising)c=(c+1)%64;if(me.rising)c=(c+63)%64;return{outputs:binOut(c,6),state:{...s,c,p:i[4],m:i[5],r:i[6]}}}},
+ COUNTER_RECV:{type:'COUNTER_RECV',label:'RECV',category:'Counter',inputs:5,outputs:1,w:84,h:70,color:'#3730a3',render:'recv',eval:(i,s)=>{const target=s.target??5;const val=binIn(i.slice(0,4),4);return{outputs:[(val===target)?1:0],state:{...s,target}}}},
+ CPU4:{type:'CPU4',label:'4B CPU',category:'Compute',inputs:2,outputs:2,w:90,h:70,color:'#155e75',eval:(i,s)=>{const run=i[0]?1:0;const clk=(s.clk||0)?0:1;return{outputs:[run,clk],state:{...s,clk,run}}}},
+ CPU8:{type:'CPU8',label:'8B CPU',category:'Compute',inputs:2,outputs:2,w:90,h:70,color:'#155e75',eval:(i,s)=>{const run=i[0]?1:0;const clk=(s.clk||0)?0:1;return{outputs:[run,clk],state:{...s,clk,run}}}},
+ CPU16:{type:'CPU16',label:'16B CPU',category:'Compute',inputs:2,outputs:2,w:100,h:80,color:'#155e75',eval:(i,s)=>{const run=i[0]?1:0;const clk=(s.clk||0)?0:1;return{outputs:[run,clk],state:{...s,clk,run}}}},
+ CPU32:{type:'CPU32',label:'32B CPU',category:'Compute',inputs:2,outputs:2,w:110,h:80,color:'#0e7490',eval:(i,s)=>{const run=(i[0]&&i[1])?1:0;const clk=(s.clk||0)?0:1;return{outputs:[run,clk],state:{...s,clk,run}}}},
+ CPU64:{type:'CPU64',label:'64B CPU',category:'Compute',inputs:2,outputs:2,w:120,h:90,color:'#0e7490',eval:(i,s)=>{let heat=(s.heat||0);const run=(i[0]&&i[1])?1:0;if(run&&!i[1])heat=Math.min(100,heat+5);else heat=Math.max(0,heat-3);const ok=run&&(i[1]||heat<100);const clk=(s.clk||0)?0:1;return{outputs:[ok?1:0,clk],state:{...s,clk,run,heat}}}},
+ CPU128:{type:'CPU128',label:'128B CPU',category:'Compute',inputs:2,outputs:2,w:140,h:100,color:'#0c4a6e',eval:(i,s)=>{let heat=(s.heat||0);const run=(i[0]&&i[1])?1:0;if(run&&!i[1])heat=Math.min(100,heat+8);else heat=Math.max(0,heat-2);const ok=run&&(i[1]||heat<100);const clk=(s.clk||0)?0:1;return{outputs:[ok?1:0,clk],state:{...s,clk,run,heat}}}},
+ MOTHERBOARD:{type:'MOTHERBOARD',label:'MOBO',category:'Compute',inputs:3,outputs:1,w:120,h:90,color:'#334155',eval:(i,s)=>{const on=(i[0]&&i[1]&&i[2])?1:0;return{outputs:[on],state:{...s,on}}}},
+ GPU:{type:'GPU',label:'GPU',category:'Compute',inputs:1,outputs:1,w:110,h:80,color:'#581c87',eval:(i,s)=>({outputs:[i[0]?1:0],state:{...s,on:i[0]?1:0}})},
+ FAN:{type:'FAN',label:'FAN',category:'Compute',inputs:1,outputs:1,w:64,h:64,color:'#334155',render:'fan',eval:(i,s)=>({outputs:[i[0]?1:0],state:{...s,on:i[0]?1:0,spin:(s.spin||0)+(i[0]?0.3:0)}})},
+ EEPROM8:{type:'EEPROM8',label:'EE8',category:'Storage',inputs:4,outputs:1,w:96,h:80,color:'#3f3f46',render:'eeprom',eval:(i,s)=>{const mem=s.mem||{};const addr=s.addr||0;let out=mem[addr]||0;if(i[2]){mem[addr]=i[0]?1:0;out=i[0]?1:0}return{outputs:[out?1:0],state:{...s,mem,addr}}}},
+ EEPROM16:{type:'EEPROM16',label:'EE16',category:'Storage',inputs:4,outputs:1,w:104,h:90,color:'#3f3f46',render:'eeprom',eval:(i,s)=>{const mem=s.mem||{};const addr=s.addr||0;let out=mem[addr]||0;if(i[2]){mem[addr]=i[0]?1:0;out=i[0]?1:0}return{outputs:[out?1:0],state:{...s,mem,addr}}}},
+ WIFI:{type:'WIFI',label:'WIFI',category:'Special',inputs:4,outputs:4,w:90,h:96,color:'#1e3a8a',render:'wifi',eval:(i,s)=>{const buf=s.buf||[];const now=Date.now();buf.push({v:i.slice(),t:now});const delayed=buf.find(b=>now-b.t>=3000);let out=[0,0,0,0];if(delayed)out=delayed.v;const nb=buf.filter(b=>now-b.t<3000);return{outputs:out,state:{...s,buf:nb}}}},
+ TRANSMITTER:{type:'TRANSMITTER',label:'TX',category:'Special',inputs:3,outputs:2,w:84,h:70,color:'#1e3a8a',eval:(i,s)=>{const clk=(s.clk||0)?0:1;const data=i[2]?i[0]:0;return{outputs:[clk,data?1:0],state:{...s,clk}}}},
+ KEYBOARD:{type:'KEYBOARD',label:'KBD',category:'Special',inputs:0,outputs:8,w:84,h:70,color:'#374151',render:'keyboard',eval:(i,s)=>{const code=(s.code||0);return{outputs:binOut(code,8),state:{...s}}}},
+ PISTON:{type:'PISTON',label:'PISTON',category:'Special',inputs:1,outputs:0,w:64,h:64,color:'#52525b',render:'piston',eval:(i,s)=>({outputs:[],state:{...s,on:i[0]?1:0}})}
+};
+const CATEGORIES=['Logic','8-Bit','Memory','Power','Display','Counter','Compute','Storage','Special','Custom'];
+const getDef=(t)=>GATE_DEFS[t]||GATE_DEFS.AND;
+function portPos(def,kind,index){const count=kind==='in'?def.inputs:def.outputs;if(count===0)return null;const spacing=def.h/(count+1);const y=spacing*(index+1);const x=kind==='in'?0:def.w;return{x,y}}
+
+/* ===================== Simulator ===================== */
+function simulate(gates,wires,prevStates){
+  const maxIter=50;let outputs={};const states={};
+  gates.forEach(g=>{const def=GATE_DEFS[g.type];outputs[g.id]=def?new Array(def.outputs).fill(0):[];states[g.id]={...(prevStates[g.id]||{})}});
+  for(let iter=0;iter<maxIter;iter++){const newOutputs={};let changed=false;
+    for(const g of gates){const def=GATE_DEFS[g.type];if(!def){newOutputs[g.id]=[];continue}
+      const inputs=new Array(def.inputs).fill(0);
+      for(const w of wires){if(w.to.gate===g.id){const src=outputs[w.from.gate];if(src)inputs[w.to.port]=src[w.from.port]||0}}
+      let result;try{result=def.eval(inputs,states[g.id])}catch(e){result={outputs:outputs[g.id]}}
+      const out=result.outputs||new Array(def.outputs).fill(0);newOutputs[g.id]=out;
+      if(result.state!==undefined)states[g.id]=result.state;
+      for(let p=0;p<out.length;p++){if((out[p]||0)!==((outputs[g.id]&&outputs[g.id][p])||0))changed=true}
+    }
+    outputs=newOutputs;if(!changed&&iter>0)break
+  }
+  return{outputs,states}
+}
+const wireActive=(outputs,w)=>{const src=outputs[w.from.gate];return src?!!src[w.from.port]:false};
+
+/* ===================== Templates ===================== */
+let idc=1;const nid=(p)=>`${p}_${idc++}`;
+function g_(type,x,y,extra={}){return{id:nid(type.toLowerCase()),type,x,y,state:extra.state||{},...extra}}
+function w_(fg,fp,tg,tp){return{id:nid('w'),from:{gate:fg,port:fp},to:{gate:tg,port:tp}}}
+const TEMPLATES=[
+ {name:'Simple AND Test',desc:'Generator → AND gate → LED',build(){const g=nid('g'),a=nid('and'),l=nid('led');return{gates:[g_('GENERATOR',100,100,{id:g}),g_('AND',240,100,{id:a}),g_('LED',400,100,{id:l})],wires:[w_(g,0,a,0),w_(g,0,a,1),w_(a,0,l,0)]}}},
+ {name:'SR Latch Memory',desc:'Set/Reset latch holding state',build(){const b1=nid('b'),b2=nid('b'),sr=nid('sr'),l=nid('l');return{gates:[g_('BUTTON',80,80,{id:b1}),g_('BUTTON',80,160,{id:b2}),g_('SR_LATCH',240,110,{id:sr}),g_('LED',400,110,{id:l})],wires:[w_(b1,0,sr,0),w_(b2,0,sr,1),w_(sr,0,l,0)]}}},
+ {name:'Toggle Flip-Flop',desc:'Button toggles output on each press',build(){const b=nid('b'),t=nid('t'),l=nid('l');return{gates:[g_('BUTTON',80,100,{id:b}),g_('TOGGLE',240,100,{id:t}),g_('LED',400,100,{id:l})],wires:[w_(b,0,t,0),w_(t,0,l,0)]}}},
+ {name:'Binary Counter',desc:'Counter driven by generator, hex display',build(){const g=nid('g'),c=nid('c'),h=nid('h');return{gates:[g_('GENERATOR',80,100,{id:g}),g_('COUNTER',240,100,{id:c}),g_('HEX_DISP',420,100,{id:h})],wires:[w_(g,0,c,0),w_(c,0,h,0),w_(c,1,h,1),w_(c,2,h,2),w_(c,3,h,3)]}}},
+ {name:'8-Bit System',desc:'Generator → 8-bit OR → LED indicator',build(){const g=nid('g'),sp=nid('sp'),or=nid('or'),l=nid('l');return{gates:[g_('GENERATOR',80,100,{id:g}),g_('SPLIT8',220,80,{id:sp}),g_('OR8',380,90,{id:or}),g_('LED',540,110,{id:l})],wires:[w_(g,0,sp,0),w_(sp,0,or,0),w_(or,0,l,0)]}}},
+ {name:'16-Bit System',desc:'CPU with power, fan, and memory',build(){const p=nid('p'),f=nid('f'),cpu=nid('cpu'),l=nid('l');return{gates:[g_('POWER_STATION',80,80,{id:p}),g_('FAN',80,180,{id:f}),g_('CPU16',260,100,{id:cpu}),g_('LED',440,110,{id:l})],wires:[w_(p,0,cpu,0),w_(f,0,cpu,1),w_(cpu,0,l,0)]}}},
+ {name:'Terminal OS',desc:'Powered terminal with command interface',build(){const g=nid('g'),t=nid('t');return{gates:[g_('GENERATOR',80,120,{id:g}),g_('TERMINAL',220,80,{id:t})],wires:[w_(g,0,t,0)]}}},
+ {name:'Keyboard + Display',desc:'Keyboard types into powered text panel',build(){const g=nid('g'),k=nid('k'),tp=nid('tp');return{gates:[g_('GENERATOR',60,100,{id:g}),g_('KEYBOARD',220,90,{id:k}),g_('TEXT_PANEL',380,100,{id:tp})],wires:[w_(g,0,tp,0)]}}},
+ {name:'XOR Parity Check',desc:'Two buttons → XOR → LED',build(){const b1=nid('b'),b2=nid('b'),x=nid('x'),l=nid('l');return{gates:[g_('BUTTON',80,80,{id:b1}),g_('BUTTON',80,160,{id:b2}),g_('XOR',240,110,{id:x}),g_('LED',400,110,{id:l})],wires:[w_(b1,0,x,0),w_(b2,0,x,1),w_(x,0,l,0)]}}},
+ {name:'EEPROM Store',desc:'Write data to EEPROM address',build(){const g=nid('g'),ee=nid('ee'),l=nid('l');return{gates:[g_('GENERATOR',60,100,{id:g}),g_('EEPROM8',220,90,{id:ee}),g_('LED',400,100,{id:l})],wires:[w_(g,0,ee,0),w_(g,0,ee,2),w_(ee,0,l,0)]}}},
+ {name:'WIFI Relay',desc:'Wireless signal across the board',build(){const g=nid('g'),w=nid('w'),l=nid('l');return{gates:[g_('GENERATOR',60,100,{id:g}),g_('WIFI',220,80,{id:w}),g_('LED',400,110,{id:l})],wires:[w_(g,0,w,0),w_(w,0,l,0)]}}},
+ {name:'Full Adder',desc:'3-input adder with sum + carry',build(){const b1=nid('b'),b2=nid('b'),b3=nid('b'),fa=nid('fa'),l1=nid('l'),l2=nid('l');return{gates:[g_('BUTTON',60,60,{id:b1}),g_('BUTTON',60,130,{id:b2}),g_('BUTTON',60,200,{id:b3}),g_('FULL_ADDER',230,110,{id:fa}),g_('LED',420,90,{id:l1}),g_('LED',420,170,{id:l2})],wires:[w_(b1,0,fa,0),w_(b2,0,fa,1),w_(b3,0,fa,2),w_(fa,0,l1,0),w_(fa,1,l2,0)]}}},
+ {name:'32-Bit Computer',desc:'Motherboard + CPU + memory + fan',build(){const p=nid('p'),mb=nid('mb'),cpu=nid('cpu'),mem=nid('mem'),f=nid('f'),l=nid('l');return{gates:[g_('POWER_STATION',60,80,{id:p}),g_('MOTHERBOARD',220,90,{id:mb}),g_('CPU32',420,90,{id:cpu}),g_('LOGIC_MEM',420,200,{id:mem}),g_('FAN',60,200,{id:f}),g_('LED',620,100,{id:l})],wires:[w_(p,0,mb,0),w_(mb,0,cpu,0),w_(f,0,cpu,1),w_(mb,0,mem,0),w_(cpu,0,l,0)]}}},
+ {name:'128-Bit Full Computer',desc:'Top-tier CPU with cooling and display',build(){const p=nid('p'),cpu=nid('cpu'),mb=nid('mb'),f1=nid('f'),f2=nid('f'),t=nid('t');return{gates:[g_('POWER_STATION',60,80,{id:p}),g_('MOTHERBOARD',220,90,{id:mb}),g_('CPU128',430,80,{id:cpu}),g_('FAN',60,200,{id:f1}),g_('FAN',160,200,{id:f2}),g_('TERMINAL',620,70,{id:t})],wires:[w_(p,0,mb,0),w_(mb,0,cpu,0),w_(f1,0,cpu,1),w_(f2,0,cpu,1),w_(cpu,0,t,0)]}}},
+ {name:'7-Segment Display',desc:'Light individual segments',build(){const g=nid('g'),sp=nid('sp'),s=nid('s');return{gates:[g_('GENERATOR',60,100,{id:g}),g_('SPLITTER',200,100,{id:sp}),g_('SEG7',360,80,{id:s})],wires:[w_(g,0,sp,0),w_(sp,0,s,0),w_(sp,1,s,3)]}}},
+ {name:'GPU Render Station',desc:'GPU with power and output',build(){const p=nid('p'),gpu=nid('gpu'),l=nid('l');return{gates:[g_('POWER_STATION',80,100,{id:p}),g_('GPU',260,90,{id:gpu}),g_('LED',440,100,{id:l})],wires:[w_(p,0,gpu,0),w_(gpu,0,l,0)]}}},
+ {name:'Complex Counter',desc:'Configurable start counter',build(){const g=nid('g'),c=nid('c'),h=nid('h');return{gates:[g_('GENERATOR',60,100,{id:g}),g_('COMPLEX_COUNTER',220,80,{id:c}),g_('HEX_DISP',440,90,{id:h})],wires:[w_(g,0,c,4),w_(c,0,h,0),w_(c,1,h,1),w_(c,2,h,2),w_(c,3,h,3)]}}},
+ {name:'Number Counter 0-9',desc:'Decimal counter display',build(){const g=nid('g'),c=nid('c'),h=nid('h');return{gates:[g_('GENERATOR',60,100,{id:g}),g_('NUM_COUNTER',220,90,{id:c}),g_('HEX_DISP',420,100,{id:h})],wires:[w_(g,0,c,0),w_(c,0,h,0),w_(c,1,h,1),w_(c,2,h,2),w_(c,3,h,3)]}}},
+ {name:'D Latch Register',desc:'Store data on enable',build(){const b=nid('b'),d=nid('d'),dl=nid('dl'),l=nid('l');return{gates:[g_('BUTTON',60,80,{id:b}),g_('GENERATOR',60,160,{id:d}),g_('D_LATCH',240,100,{id:dl}),g_('LED',420,100,{id:l})],wires:[w_(b,0,dl,1),w_(d,0,dl,0),w_(dl,0,l,0)]}}},
+ {name:'NAND SR Latch',desc:'Build latch from NAND gates',build(){const b1=nid('b'),b2=nid('b'),n1=nid('n'),n2=nid('n'),l=nid('l');return{gates:[g_('BUTTON',60,80,{id:b1}),g_('BUTTON',60,180,{id:b2}),g_('NAND',240,80,{id:n1}),g_('NAND',240,180,{id:n2}),g_('LED',420,120,{id:l})],wires:[w_(b1,0,n1,0),w_(b2,0,n2,1),w_(n1,0,n2,0),w_(n2,0,n1,1),w_(n1,0,l,0)]}}}
+];
+
+/* ===================== Terminal OS ===================== */
+const BOOT=['LogicOS v2.0  [128-bit ready]','(c) 2026 Logic Labs Systems','','Memory check ........ OK','CPU probe ........... OK','Loading kernel ...... OK','Type HELP for command list.'];
+const termStore={}; // gateId -> {lines,input,hist,hi,outEl,inEl,wrap}
+function termBoot(){return BOOT.slice()}
+function makeTerminal(gateId){
+  termStore[gateId]={lines:termBoot(),input:'',hist:[],hi:-1,outEl:null,inEl:null};
+}
+const TERM_COMMANDS={
+ help:(t,a)=>tOut(t,'Available commands:','help            list commands','clear           clear screen','echo <text>     print text','date / time     show date/time','whoami          current user','ver             OS version','dir / ls        list files','calc <expr>     calculator','hex/bin/dec     base convert','gates           gate count','list            gate catalog','about / credits system info','joke / fortune  fun output','matrix          enter the matrix','...and many more!'),
+ clear:(t)=>{t.lines.length=0;tRender(t)},
+ cls:(t)=>{t.lines.length=0;tRender(t)},
+ echo:(t,a)=>tOut(t,a.join(' ')),
+ print:(t,a)=>tOut(t,a.join(' ')),
+ say:(t,a)=>tOut(t,a.join(' ')),
+ date:(t)=>tOut(t,new Date().toLocaleDateString()),
+ time:(t)=>tOut(t,new Date().toLocaleTimeString()),
+ now:(t)=>tOut(t,new Date().toString()),
+ whoami:(t)=>tOut(t,'admin@logicos'),
+ host:(t)=>tOut(t,'logic-lab-001'),
+ ver:(t)=>tOut(t,'LogicOS v2.0.4 (build 20260804)'),
+ version:(t)=>tOut(t,'LogicOS v2.0.4 (build 20260804)'),
+ os:(t)=>tOut(t,'LogicOS — 128-bit microkernel'),
+ boot:(t)=>{t.lines.length=0;t.lines.push(...termBoot());tRender(t)},
+ reboot:(t)=>{tOut(t,'Rebooting...');t.lines.length=0;setTimeout(()=>{t.lines.push(...termBoot());tRender(t)},400)},
+ shutdown:(t)=>tOut(t,'System halted. Disconnect power to restart.'),
+ halt:(t)=>tOut(t,'System halted.'),
+ dir:(t)=>tOut(t,'gates.lgc   wires.bin   state.sav   config.sys'),
+ ls:(t)=>tOut(t,'gates.lgc   wires.bin   state.sav   config.sys'),
+ cat:(t,a)=>tOut(t,a[0]?`[${a[0]}] file contents not available in demo mode`:'usage: cat <file>'),
+ type:(t,a)=>tOut(t,a[0]?`[${a[0]}] file contents not available`:'usage: type <file>'),
+ cd:(t,a)=>tOut(t,a[0]?`/${a[0]}/`:'/'),
+ pwd:(t)=>tOut(t,'/logic/system'),
+ mkdir:(t,a)=>tOut(t,a[0]?`created /${a[0]}/`:'usage: mkdir <name>'),
+ rm:(t,a)=>tOut(t,a[0]?`deleted ${a[0]}`:'usage: rm <file>'),
+ del:(t,a)=>tOut(t,a[0]?`deleted ${a[0]}`:'usage: del <file>'),
+ copy:(t,a)=>tOut(t,a[0]?`copied to ${a[0]}`:'usage: copy <dest>'),
+ move:(t,a)=>tOut(t,a[0]?`moved to ${a[0]}`:'usage: move <dest>'),
+ ren:(t,a)=>tOut(t,a[0]?`renamed to ${a[0]}`:'usage: ren <name>'),
+ edit:(t)=>tOut(t,'Editor not available in terminal mode.'),
+ format:(t)=>tOut(t,'Formatting C: ...','Disk formatted. All data lost.'),
+ scan:(t)=>tOut(t,'Scanning logic grid...','0 errors found. System healthy.'),
+ chkdsk:(t)=>tOut(t,'Checking disk integrity...','OK'),
+ defrag:(t)=>tOut(t,'Defragmenting memory...','Done.'),
+ mem:(t)=>tOut(t,`Memory: ${S.gates.length*4} bytes used / 65536 free`),
+ tasklist:(t)=>tOut(t,'PID  NAME        STATUS','1    kernel      running','2    sim-engine  running','3    display     idle'),
+ ps:(t)=>tOut(t,'PID  NAME','1    kernel','2    sim-engine'),
+ kill:(t,a)=>tOut(t,a[0]?`process ${a[0]} terminated`:'usage: kill <pid>'),
+ ping:(t,a)=>tOut(t,`Pinging ${a[0]||'localhost'}...`,`reply: 1ms`,`reply: 1ms`),
+ ip:(t)=>tOut(t,'IP: 10.0.0.42','Mask: 255.255.255.0'),
+ ipconfig:(t)=>tOut(t,'IP: 10.0.0.42','Gateway: 10.0.0.1'),
+ netstat:(t)=>tOut(t,'Proto  Local          Foreign','TCP    10.0.0.42:80    0.0.0.0:*'),
+ wifi:(t)=>tOut(t,'WiFi: connected','SSID: LogicNet','Signal: -42 dBm'),
+ calc:(t,a)=>{try{const r=Function('return '+a.join(''))();tOut(t,`= ${r}`)}catch(e){tOut(t,'error')}},
+ add:(t,a)=>tOut(t,`= ${a.reduce((s,n)=>s+(+n||0),0)}`),
+ sub:(t,a)=>tOut(t,`= ${a.slice(1).reduce((s,n)=>s-(+n||0),+a[0]||0)}`),
+ mul:(t,a)=>tOut(t,`= ${a.reduce((s,n)=>s*(+n||1),1)}`),
+ hex:(t,a)=>tOut(t,(+a[0]||0).toString(16).toUpperCase()),
+ bin:(t,a)=>tOut(t,(+a[0]||0).toString(2)),
+ dec:(t,a)=>tOut(t,parseInt(a[0]||'0',a[1]||16).toString()),
+ ascii:(t,a)=>tOut(t,(a[0]||'').charCodeAt(0)),
+ char:(t,a)=>tOut(t,String.fromCharCode(+a[0]||0)),
+ rand:(t)=>tOut(t,Math.floor(Math.random()*100)),
+ dice:(t)=>tOut(t,`🎲 ${Math.floor(Math.random()*6)+1}`),
+ coin:(t)=>tOut(t,Math.random()<0.5?'HEADS':'TAILS'),
+ gates:(t)=>tOut(t,`Gates on canvas: ${S.gates.length}`),
+ count:(t)=>tOut(t,`Active components: ${S.gates.length}`),
+ list:(t)=>tOut(t,'AND OR XOR NOT NAND NOR XNOR SPLITTER','CPU4 CPU8 CPU16 CPU32 CPU64 CPU128','EEPROM8 EEPROM16 GPU MOTHERBOARD'),
+ info:(t)=>tOut(t,'Logic Lab Terminal — interactive command shell'),
+ about:(t)=>tOut(t,'LogicOS: a simulated operating system for the Logic Lab.','Built with 128-bit ready architecture.'),
+ credits:(t)=>tOut(t,'Design: Logic Labs','Inspired by: Upload Labs'),
+ color:(t,a)=>tOut(t,a[0]?`Color set to ${a[0]}`:'usage: color <name>'),
+ theme:(t,a)=>tOut(t,a[0]?`Theme: ${a[0]}`:'themes: dark, light, matrix'),
+ matrix:(t)=>{tOut(t,'Entering matrix mode...');setTimeout(()=>tOut(t,'Wake up, Neo.'),1000)},
+ exit:(t)=>tOut(t,'Cannot exit — terminal is powered.'),
+ quit:(t)=>tOut(t,'Cannot quit — terminal is powered.'),
+ logout:(t)=>tOut(t,'No session to log out from.'),
+ yes:(t)=>tOut(t,'y'),
+ no:(t)=>tOut(t,'n'),
+ true:(t)=>tOut(t,'1'),
+ false:(t)=>tOut(t,'0'),
+ null:(t)=>tOut(t,'null'),
+ void:(t)=>tOut(t,'void'),
+ test:(t)=>tOut(t,'Test signal: OK'),
+ diag:(t)=>tOut(t,'Running diagnostics...','CPU: OK','MEM: OK','GPU: OK','FAN: OK','All systems nominal.'),
+ status:(t)=>tOut(t,'STATUS: ONLINE','Uptime: 00:42:17','Load: 12%'),
+ sys:(t)=>tOut(t,'System: LogicOS v2.0','Arch: 128-bit','Cores: 8'),
+ spec:(t)=>tOut(t,'CPU: 128-bit @ 4.2GHz','RAM: 64GB','GPU: LogicVision RTX'),
+ bench:(t)=>tOut(t,'Benchmarking...','Score: 42891','Rank: S'),
+ clock:(t)=>tOut(t,`System clock: ${(Date.now()%100000)/1000}s`),
+ timer:(t,a)=>tOut(t,`Timer set for ${a[0]||5}s`),
+ alarm:(t,a)=>tOut(t,`Alarm set for ${a[0]||'12:00'}`),
+ calendar:(t)=>tOut(t,new Date().toLocaleDateString('en',{weekday:'long',year:'numeric',month:'long',day:'numeric'})),
+ today:(t)=>tOut(t,new Date().toDateString()),
+ history:(t)=>tOut(t,...t.hist.slice(-10)),
+ repeat:(t,a)=>tOut(t,Array.from({length:+(a[1]||3)},()=>a[0]||'').join(' ')),
+ reverse:(t,a)=>tOut(t,(a.join(' ')).split('').reverse().join('')),
+ upper:(t,a)=>tOut(t,a.join(' ').toUpperCase()),
+ lower:(t,a)=>tOut(t,a.join(' ').toLowerCase()),
+ len:(t,a)=>tOut(t,(a.join(' ')).length),
+ count_chars:(t,a)=>tOut(t,(a.join(' ')).length),
+ sort:(t,a)=>tOut(t,a.sort().join(' ')),
+ uniq:(t,a)=>tOut(t,[...new Set(a)].join(' ')),
+ head:(t,a)=>tOut(t,(a.join(' ')).slice(0,20)),
+ tail:(t,a)=>tOut(t,(a.join(' ')).slice(-20)),
+ grep:(t,a)=>tOut(t,a[0]?`searching for "${a[0]}"...`:'usage: grep <pattern>'),
+ find:(t,a)=>tOut(t,a[0]?`found 0 matches for "${a[0]}"`:'usage: find <pattern>'),
+ man:(t,a)=>tOut(t,a[0]?`Manual: ${a[0]} - command exists`:'usage: man <cmd>'),
+ clearhist:(t)=>{t.hist.length=0;tOut(t,'history cleared')},
+ joke:(t)=>tOut(t,['Why did the NAND go to therapy? It felt inverted.','01001110 01101111.','A logic gate walks into a bar... AND OR NOR.'][Math.floor(Math.random()*3)]),
+ fortune:(t)=>tOut(t,['"Logic is the beginning of wisdom." — Spock','"To err is human; to debug, divine."','"There are 10 types of people..."'][Math.floor(Math.random()*3)]),
+ banner:(t)=>tOut(t,'██╗      ██████╗  ██████╗','██║     ██╔═══██╗██╔════╝','██║     ██║   ██║██║     ','██║     ██║   ██║██║     ','███████╗╚██████╔╝╚██████╗','╚══════╝ ╚═════╝  ╚═════╝'),
+ ascii_art:(t)=>tOut(t,'  ___',' / _ \\','| | | |','| |_| |',' \\___/','LOGIC'),
+ cowsay:(t,a)=>tOut(t,` ${'_'+(a.join(' ')||'moo')}_`,'        \\   ^__^','         \\  (oo)\\_______','            (__)\\       )\\/\\','                ||----w |','                ||     ||'),
+ figlet:(t,a)=>tOut(t,`.---..---..---..---.\n| ${a[0]||'L'} || ${a[1]||'O'} || ${a[2]||'G'} || ${a[3]||'I'} |`),
+ starwars:(t)=>tOut(t,'A long time ago in a circuit far away...'),
+ easter:(t)=>tOut(t,'🐰 You found an egg!'),
+ secret:(t)=>tOut(t,'🤫 nothing to see here'),
+ admin:(t)=>tOut(t,'Admin mode: ENABLED (you are the builder)'),
+ superuser:(t)=>tOut(t,'root privileges granted.'),
+ sudo:(t,a)=>tOut(t,a[0]?`running ${a[0]} as root... done`:'usage: sudo <cmd>'),
+ su:(t)=>tOut(t,'switched to root'),
+ passwd:(t)=>tOut(t,'password: ********','Password changed.'),
+ encrypt:(t,a)=>{try{tOut(t,btoa(a.join(' ')))}catch(e){tOut(t,a.join(' '))}},
+ decrypt:(t)=>tOut(t,'decryption requires key.'),
+ base64:(t,a)=>{try{tOut(t,btoa(a.join(' ')))}catch(e){tOut(t,'error')}},
+ hash:(t,a)=>tOut(t,'sha256: '+(a.join(' ')).split('').reduce((h,c)=>((h<<5)-h+c.charCodeAt(0))|0,0).toString(16)),
+ uuid:(t)=>tOut(t,crypto&&crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx'),
+ uuidgen:(t)=>tOut(t,crypto&&crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx'),
+ md5:(t)=>tOut(t,'d41d8cd98f00b204e9800998ecf8427e'),
+ sha:(t)=>tOut(t,'da39a3ee5e6b4b0d3255bfef95601890'),
+ git:(t,a)=>tOut(t,a[0]?`git ${a[0]}: ok`:'usage: git <command>'),
+ npm:(t,a)=>tOut(t,a[0]?`npm ${a[0]}: done`:'usage: npm <cmd>'),
+ build:(t)=>tOut(t,'Building circuit...','✓ Compiled successfully'),
+ compile:(t)=>tOut(t,'Compiling...','0 errors, 0 warnings'),
+ run:(t)=>tOut(t,'Executing program...','Program exited with code 0'),
+ deploy:(t)=>tOut(t,'Deploying to motherboard...','Deployed.'),
+ simulate:(t)=>tOut(t,'Simulation active.'),
+ trace:(t)=>tOut(t,'Tracing signals...','All paths valid.'),
+ log:(t,a)=>tOut(t,`[LOG] ${a.join(' ')}`),
+ warn:(t,a)=>tOut(t,`[WARN] ${a.join(' ')}`),
+ error:(t,a)=>tOut(t,`[ERROR] ${a.join(' ')}`),
+ debug:(t)=>tOut(t,'Debug mode toggled.'),
+ step:(t)=>tOut(t,'Stepped 1 tick.'),
+ reset:(t)=>tOut(t,'Circuit reset.'),
+ power:(t)=>tOut(t,'Power: ON','Voltage: 5V','Current: 1.2A'),
+ voltage:(t)=>tOut(t,'5.0 V'),
+ current:(t)=>tOut(t,'1.2 A'),
+ temp:(t)=>tOut(t,'CPU temp: 42°C'),
+ fan:(t)=>tOut(t,'Fan speed: 2400 RPM'),
+ speed:(t)=>tOut(t,'Clock: 4.2 GHz'),
+ freq:(t)=>tOut(t,'Frequency: 50 Hz'),
+ hz:(t)=>tOut(t,'50 Hz'),
+ mhz:(t)=>tOut(t,'4200 MHz'),
+ ghz:(t)=>tOut(t,'4.2 GHz'),
+ byte:(t)=>tOut(t,'8 bits'),
+ bit:(t)=>tOut(t,'1'),
+ nibble:(t)=>tOut(t,'4 bits'),
+ word:(t)=>tOut(t,'128 bits'),
+ overflow:(t)=>tOut(t,'No overflow detected.'),
+ zero:(t)=>tOut(t,'Zero flag: 0'),
+ carry:(t)=>tOut(t,'Carry flag: 0'),
+ parity:(t)=>tOut(t,'Parity: even'),
+ flags:(t)=>tOut(t,'Z=0 C=0 P=1 O=0'),
+ register:(t)=>tOut(t,'R0=00 R1=01 R2=02 R3=03'),
+ ax:(t)=>tOut(t,'AX: 0x0000'),
+ bx:(t)=>tOut(t,'BX: 0x0000'),
+ cx:(t)=>tOut(t,'CX: 0x0000'),
+ dx:(t)=>tOut(t,'DX: 0x0000'),
+ sp:(t)=>tOut(t,'SP: 0xFFFE'),
+ pc:(t)=>tOut(t,'PC: 0x0000'),
+ stack:(t)=>tOut(t,'[empty]'),
+ heap:(t)=>tOut(t,'[empty]'),
+ asm:(t,a)=>tOut(t,a[0]?`assembled: ${a[0]}`:'usage: asm <instruction>'),
+ mov:(t)=>tOut(t,'register updated.'),
+ jmp:(t)=>tOut(t,'jumped.'),
+ cmp:(t)=>tOut(t,'compared.'),
+ nop:()=>{},
+ halt2:(t)=>tOut(t,'halted.')
+};
+function tOut(t,...xs){t.lines.push(...xs);tRender(t)}
+function tRun(t,raw){const cmd=raw.trim();if(!cmd)return;t.lines.push(`> ${cmd}`);t.hist.push(cmd);const[name,...args]=cmd.split(/\s+/);const fn=TERM_COMMANDS[name.toLowerCase()];if(fn){try{fn(t,args)}catch(e){tOut(t,'runtime error')}}else tOut(t,`'${name}' is not recognized. Type HELP.`);tRender(t)}
+function tRender(t){if(!t.outEl)return;t.outEl.innerHTML=t.lines.map(l=>`<div>${escHtml(l)}</div>`).join('');t.outEl.scrollTop=t.outEl.scrollHeight}
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+/* ===================== State ===================== */
+const S={gates:[],wires:[],notes:[],outputs:{},states:{},running:true,selectedType:null,selectedGateId:null,multiSelect:new Set(),pan:{x:40,y:20},zoom:1,pending:null,showPalette:true,customGates:[],activeKeyboard:null,stepOnce:0,cat:'Logic'};
+
+/* ===================== DOM refs ===================== */
+const $=id=>document.getElementById(id);
+const canvas=$('canvas'),canvasWrap=$('canvas-wrap'),gatesLayer=$('gates-layer'),wiresG=$('wires-g'),hud=$('hud');
+let toastTimer=null;
+function flash(m){const el=$('toast');el.textContent=m;el.style.opacity='1';clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.style.opacity='0',1800)}
+function toCanvas(cx,cy){const r=canvas.getBoundingClientRect();return{x:(cx-r.left-S.pan.x)/S.zoom,y:(cy-r.top-S.pan.y)/S.zoom}}
+
+/* ===================== Toolbar ===================== */
+function renderToolbar(){
+  const tb=$('toolbar');tb.innerHTML='';
+  const btn=(label,fn,opts={})=>{const b=document.createElement('button');b.className='tbtn'+(opts.active?' active':'');b.textContent=label;b.disabled=!!opts.disabled;b.onclick=fn;return b};
+  const sep=()=>{const d=document.createElement('div');d.className='tsep';return d};
+  tb.appendChild(btn(S.running?'⏸ Pause':'▶ Run',()=>{S.running=!S.running;renderToolbar()}));
+  tb.appendChild(btn('⏭ Step',()=>{S.stepOnce++},{disabled:S.running}));
+  tb.appendChild(sep());tb.appendChild(btn('🗑 Clear',onClear));
+  tb.appendChild(sep());tb.appendChild(btn('💾 Save',onSave));tb.appendChild(btn('📂 Load',onLoad));
+  tb.appendChild(sep());tb.appendChild(btn('⬆ Export',onExport));
+  const imp=btn('⬇ Import',()=>{});const fi=document.createElement('input');fi.type='file';fi.accept='.json';fi.style.display='none';fi.onchange=e=>{if(e.target.files[0])onImport(e.target.files[0]);e.target.value=''};imp.onclick=()=>fi.click();tb.appendChild(imp);tb.appendChild(fi);
+  tb.appendChild(sep());tb.appendChild(btn('📋 Templates',()=>showTemplates()));
+  tb.appendChild(btn('⬚ Group',onGroup));tb.appendChild(btn('📝 Note',onNote));
+  const stats=document.createElement('div');stats.id='stats';
+  const activeCount=Object.values(S.outputs).reduce((s,o)=>s+o.filter(Boolean).length,0)+S.wires.filter(w=>wireActive(S.outputs,w)).length;
+  stats.innerHTML=`gates: <b>${S.gates.length}</b><span class="act">active: <b>${activeCount}</b></span>`;
+  tb.appendChild(stats);
+}
+
+/* ===================== Palette ===================== */
+function renderPalette(){
+  const catRow=$('cat-row');catRow.innerHTML='';
+  CATEGORIES.forEach(c=>{const b=document.createElement('button');b.className='cat-btn'+(S.cat===c?' on':'');b.textContent=c;b.onclick=()=>{S.cat=c;renderPalette()};catRow.appendChild(b)});
+  const list=$('palette-list');list.innerHTML='';
+  const items=Object.values(GATE_DEFS).filter(g=>g.category===S.cat);
+  items.forEach(g=>{
+    const d=document.createElement('button');d.className='pitem';d.onclick=()=>{S.selectedType=g.type;flash('Click canvas to place '+g.type);canvas.classList.add('placing')};
+    d.innerHTML=`<div class="pswatch"><i style="background:${g.color}"></i></div><span>${g.label}</span>`;list.appendChild(d)
+  });
+  S.customGates.forEach(cg=>{
+    const d=document.createElement('button');d.className='pitem custom';d.onclick=()=>{S.selectedType='CUSTOM:'+cg.id;flash('Custom selected')};
+    d.innerHTML=`<div class="pswatch"><i style="background:#4338ca"></i></div><span>${cg.name}</span>`;list.appendChild(d)
+  });
+}
+
+/* ===================== Gate inner content ===================== */
+function gateInnerHTML(def,gate,signals){
+  const st=gate.state||{};
+  switch(def.render){
+    case 'led':{const on=st.on;const color=st.color||'#22c55e';return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%"><div class="led-dot" data-led style="width:28px;height:28px;background:${on?color:'#18181b'};box-shadow:${on?`0 0 18px ${color}`:'none'}"></div></div>`}
+    case 'fan':{const on=st.on;const spin=st.spin||0;return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;overflow:hidden"><svg data-fan width="48" height="48" viewBox="0 0 48 48" style="transform:rotate(${spin}deg);transition:transform .05s linear"><circle cx="24" cy="24" r="6" fill="#71717a"/>\n${[0,90,180,270].map(a=>`<ellipse cx="24" cy="14" rx="5" ry="11" fill="${on?'#a1a1aa':'#52525b'}" transform="rotate(${a} 24 24)"/>`).join('')}</svg></div>`}
+    case 'seg7':{const segs=st.segs||[0,0,0,0,0,0,0];const C='#22c55e',OFF='#27272a';const pts=[[10,4,34,4,31,7,13,7],[37,7,37,28,34,25,34,10],[37,32,37,53,34,50,34,35],[10,56,34,56,31,53,13,53],[7,32,7,53,10,50,10,35],[7,7,7,28,10,25,10,10],[10,30,34,30,31,27,13,27,10,33]];return `<svg data-seg7 width="44" height="60" viewBox="0 0 44 60">${pts.map((p,i)=>`<polygon points="${p.join(',')}" fill="${segs[i]?C:OFF}"/>`).join('')}</svg>`}
+    case 'hex':{const v=st.val||0;const map=['0','1','2','3','4','5','6','7','8','9','A','b','C','d','E','F'];return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%"><span data-hex class="mono" style="font-size:30px;color:#22c55e;text-shadow:0 0 10px #22c55e">${map[v]}</span></div>`}
+    case 'text':{const on=st.on;const txt=st.text||'TEXT PANEL';return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:0 4px"><span data-text style="font-size:11px;color:${on?'#a3e635':'#52525b'};text-shadow:${on?'0 0 6px #a3e635':'none'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${on?escHtml(txt):'— off —'}</span></div>`}
+    case 'keyboard':return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:10px;color:#a1a1aa"><button data-kbd style="padding:4px 8px;background:#27272a;border-radius:4px;border:1px solid #3f3f46;color:#d4d4d8;cursor:pointer">TYPE</button></div>`
+    case 'piston':{const on=st.on;return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%"><div data-piston style="width:${on?40:24}px;height:16px;background:#71717a;transition:width .15s;border:1px solid #27272a"></div></div>`}
+    case 'button':{const on=st.on;return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%"><div data-toggle style="width:24px;height:24px;border-radius:6px;background:${on?'#22c55e':'#3f3f46'};box-shadow:${on?'0 0 10px #22c55e':'inset 0 0 4px #000'};cursor:pointer"></div></div>`}
+    case 'recv':{const t=st.target??5;return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#d4d4d8;font-size:12px;flex-direction:column"><span class="mono">${t}</span><span style="font-size:8px;color:#71717a">target</span></div>`}
+    case 'eeprom':{const addr=st.addr??0;const mem=st.mem||{};return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;font-size:8px;color:#a1a1aa;gap:2px"><span>ADDR:${addr}</span><span>VAL:${mem[addr]?1:0}</span></div>`}
+    case 'wifi':{const out=signals||[];return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;font-size:8px;color:#a1a1aa;gap:2px"><span>WIFI</span><span style="color:#71717a">3s delay</span><div style="display:flex;gap:2px" data-wifi>${[0,1,2,3].map(i=>`<span style="width:6px;height:6px;border-radius:3px;background:${out[i]?'#3b82f6':'#27272a'}"></span>`).join('')}</div></div>`}
+    case 'terminal':return `<div data-term-slot></div>`
+    default:return ''
+  }
+}
+
+/* ===================== Render gates (structure) ===================== */
+function renderGates(){
+  gatesLayer.innerHTML='';
+  const t=Math.max(1,S.zoom);
+  gatesLayer.style.transform=`translate(${S.pan.x}px,${S.pan.y}px) scale(${t})`;
+  S.gates.forEach(g=>{
+    const def=getDef(g.type);
+    const el=document.createElement('div');
+    el.className='gate'+(S.selectedGateId===g.id?' selected':'')+(S.multiSelect.has(g.id)?' multi':'');
+    el.style.left=g.x+'px';el.style.top=g.y+'px';el.style.width=def.w+'px';el.style.height=def.h+'px';
+    const body=document.createElement('div');body.className='gate-body';
+    const acc=document.createElement('div');acc.className='gate-accent';acc.style.background=def.color;body.appendChild(acc);
+    const slot=document.createElement('div');slot.style.cssText='position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center';
+    slot.innerHTML=gateInnerHTML(def,g,S.outputs[g.id]||[]);
+    body.appendChild(slot);
+    if(def.render!=='terminal'){const lbl=document.createElement('div');lbl.className='gate-label';lbl.textContent=def.label;body.appendChild(lbl)}
+    const del=document.createElement('button');del.className='gdel';del.textContent='×';del.onclick=e=>{e.stopPropagation();onDeleteGate(g)};body.appendChild(del);
+    if(['eeprom','recv','text','led'].includes(def.render)){const cfg=document.createElement('button');cfg.className='gcfg';cfg.textContent='⚙';cfg.onclick=e=>{e.stopPropagation();onConfigure(g)};body.appendChild(cfg)}
+    // terminal wiring
+    if(def.render==='terminal'){buildTerminalDOM(slot,g)}
+    // keyboard button
+    const kbdBtn=slot.querySelector('[data-kbd]');if(kbdBtn)kbdBtn.onclick=e=>{e.stopPropagation();onKeyboard(g)}
+    // toggle button
+    const togBtn=slot.querySelector('[data-toggle]');if(togBtn)togBtn.onclick=e=>{e.stopPropagation();onToggle(g)}
+    el.appendChild(body);
+    el.onmousedown=e=>onGateDown(e,g);
+    // ports
+    for(let i=0;i<def.inputs;i++){const p=portPos(def,'in',i);addPort(el,p.x,p.y,'in',i,g,false)}
+    for(let i=0;i<def.outputs;i++){const p=portPos(def,'out',i);const act=!!((S.outputs[g.id]||[])[i]);addPort(el,p.x,p.y,'out',i,g,act)}
+    gatesLayer.appendChild(el)
+  });
+  // notes
+  S.notes.forEach(n=>{
+    const d=document.createElement('div');d.className='note';d.style.left=n.x+'px';d.style.top=n.y+'px';
+    d.onmousedown=e=>{e.stopPropagation();const sx=e.clientX,sy=e.clientY,ox=n.x,oy=n.y;const mv=ev=>{n.x=ox+ev.clientX-sx;n.y=oy+ev.clientY-sy;d.style.left=n.x+'px';d.style.top=n.y+'px'};const up=()=>{document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up)};document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up)};
+    const ta=document.createElement('textarea');ta.value=n.text||'';ta.placeholder='Note...';ta.rows=3;ta.oninput=()=>{n.text=ta.value};ta.onmousedown=e=>e.stopPropagation();
+    const del=document.createElement('button');del.className='ndel';del.textContent='×';del.onclick=e=>{e.stopPropagation();S.notes=S.notes.filter(x=>x.id!==n.id);renderGates()};
+    d.appendChild(ta);d.appendChild(del);gatesLayer.appendChild(d)
+  });
+}
+function addPort(parent,x,y,kind,index,gate,active){
+  const d=document.createElement('div');d.className='port'+(active?' active':'');d.style.left=(x-6)+'px';d.style.top=(y-6)+'px';
+  d.dataset.kind=kind;d.dataset.index=index;d.dataset.gate=gate.id;
+  d.onmousedown=e=>onPortDown(e,gate,kind,index);
+  parent.appendChild(d)
+}
+function buildTerminalDOM(slot,g){
+  if(!termStore[g.id])makeTerminal(g.id);
+  const t=termStore[g.id];
+  const wrap=document.createElement('div');wrap.className='term';wrap.onclick=e=>e.stopPropagation();
+  const out=document.createElement('div');out.className='term-out';
+  const inRow=document.createElement('div');inRow.className='term-in';
+  inRow.innerHTML='<span>&gt;</span>';
+  const inp=document.createElement('input');inp.autocomplete='off';
+  inp.onkeydown=e=>{
+    if(e.key==='Enter'){tRun(t,inp.value);inp.value='';t.input='';t.hi=-1}
+    else if(e.key==='ArrowUp'){e.preventDefault();const ni=t.hi<0?t.hist.length-1:Math.max(0,t.hi-1);if(t.hist[ni]!==undefined){inp.value=t.hist[ni];t.hi=ni}}
+    else if(e.key==='ArrowDown'){e.preventDefault();const ni=t.hi+1;if(ni>=t.hist.length){inp.value='';t.hi=-1}else{inp.value=t.hist[ni];t.hi=ni}}
+  };
+  inRow.appendChild(inp);
+  wrap.appendChild(out);wrap.appendChild(inRow);
+  slot.appendChild(wrap);
+  t.outEl=out;t.inEl=inp;
+  // power overlay
+  const powered=!!g.state&&g.state.power;
+  if(!powered){wrap.style.display='none';const np=document.createElement('div');np.className='term-nopower';np.textContent='— NO POWER —';slot.appendChild(np)}
+  else {tRender(t)}
+}
+
+/* ===================== Render wires ===================== */
+function wirePath(fromPos,toPos){
+  const dx=Math.max(20,Math.abs(toPos.x-fromPos.x)*0.5);
+  return `M ${fromPos.x} ${fromPos.y} C ${fromPos.x+dx} ${fromPos.y}, ${toPos.x-dx} ${toPos.y}, ${toPos.x} ${toPos.y}`;
+}
+function renderWires(){
+  const z=Math.max(1,S.zoom);
+  wiresG.setAttribute('transform',`translate(${S.pan.x},${S.pan.y}) scale(${z})`);
+  let html='';
+  S.wires.forEach(w=>{
+    const fg=S.gates.find(g=>g.id===w.from.gate),tg=S.gates.find(g=>g.id===w.to.gate);
+    if(!fg||!tg)return;
+    const fd=getDef(fg.type),td=getDef(tg.type);
+    const fp=portPos(fd,'out',w.from.port),tp=portPos(td,'in',w.to.port);
+    const from={x:fg.x+fp.x,y:fg.y+fp.y},to={x:tg.x+tp.x,y:tg.y+tp.y};
+    const active=wireActive(S.outputs,w);
+    const d=wirePath(from,to);
+    html+=`<path d="${d}" stroke="${active?'#22c55e':'#52525b'}" stroke-width="2" fill="none" data-wid="${w.id}" style="pointer-events:stroke"/>`;
+  });
+  if(S.pending){const d=wirePath(S.pending.fromPos,S.pending.toPos);html+=`<path d="${d}" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4 3" fill="none" style="pointer-events:none"/>`}
+  wiresG.innerHTML=html;
+  wiresG.querySelectorAll('path[data-wid]').forEach(p=>p.onclick=e=>{e.stopPropagation();S.wires=S.wires.filter(x=>x.id!==p.dataset.wid);renderWires();renderToolbar()});
+}
+
+/* ===================== Signal update (per tick, no full rebuild) ===================== */
+function updateSignals(){
+  // update ports active state + dynamic inner content
+  document.querySelectorAll('.gate').forEach(el=>{
+    const id=el.querySelector('.port')&&el.querySelector('.port').dataset.gate;
+    // find gate id via ports
+  });
+  S.gates.forEach(g=>{
+    const def=getDef(g.type);const el=[...gatesLayer.querySelectorAll('.gate')].find(e=>{const p=e.querySelector('.port');return p&&p.dataset.gate===g.id});
+    if(!el)return;
+    const st={...(g.state||{}),...(S.states[g.id]||{})};
+    const sig=S.outputs[g.id]||[];
+    // ports
+    el.querySelectorAll('.port').forEach(p=>{if(p.dataset.kind==='out'){const i=+p.dataset.index;p.classList.toggle('active',!!sig[i])}});
+    // dynamic renders
+    const led=el.querySelector('[data-led]');if(led){const on=st.on;const color=st.color||'#22c55e';led.style.background=on?color:'#18181b';led.style.boxShadow=on?`0 0 18px ${color}`:'none'}
+    const fan=el.querySelector('[data-fan]');if(fan){fan.style.transform=`rotate(${st.spin||0}deg)`}
+    const hex=el.querySelector('[data-hex]');if(hex){const map=['0','1','2','3','4','5','6','7','8','9','A','b','C','d','E','F'];hex.textContent=map[st.val||0]}
+    const seg=el.querySelector('[data-seg7]');if(seg){const segs=st.segs||[0,0,0,0,0,0,0];const C='#22c55e',OFF='#27272a';[...seg.querySelectorAll('polygon')].forEach((po,i)=>po.setAttribute('fill',segs[i]?C:OFF))}
+    const tx=el.querySelector('[data-text]');if(tx){const on=st.on;tx.style.color=on?'#a3e635':'#52525b';tx.style.textShadow=on?'0 0 6px #a3e635':'none';tx.textContent=on?(st.text||'TEXT'):'— off —'}
+    const pist=el.querySelector('[data-piston]');if(pist){pist.style.width=(st.on?40:24)+'px'}
+    const wf=el.querySelector('[data-wifi]');if(wf){const out=sig;[...wf.querySelectorAll('span')].forEach((s,i)=>s.style.background=out[i]?'#3b82f6':'#27272a')}
+    // terminal power overlay handled on structure change; but update if changed
+  });
+  renderWires();
+}
+
+/* ===================== HUD ===================== */
+function renderHUD(){
+  hud.innerHTML='';
+  const chip=(txt,cls)=>{const s=document.createElement('span');s.className='hud-chip'+(cls?' '+cls:'');s.textContent=txt;return s};
+  hud.appendChild(chip(`zoom ${(S.zoom*100|0)}%`));
+  if(S.selectedType)hud.appendChild(chip(`placing: ${S.selectedType}`,'act'));
+  if(S.pending)hud.appendChild(chip('click an INPUT port to connect','blue'));
+  if(S.activeKeyboard)hud.appendChild(chip('⌨ typing — Esc to stop','amber'));
+  const lb=document.createElement('button');lb.className='hud-btn';lb.textContent='☰ list';lb.onclick=()=>{$('gate-list').style.display=$('gate-list').style.display==='none'?'block':'none';renderGateList()};hud.appendChild(lb);
+  const pb=document.createElement('button');pb.className='hud-btn';pb.textContent='⊞ parts';pb.onclick=()=>showPalette();hud.appendChild(pb);
+  renderMinimap();
+}
+function renderGateList(){
+  const gl=$('gate-list');
+  gl.innerHTML=`<div class="gl-head"><span>Gate List (${S.gates.length})</span><button class="gl-close">✕</button></div><div class="gl-body"></div>`;
+  gl.querySelector('.gl-close').onclick=()=>{gl.style.display='none'};
+  const body=gl.querySelector('.gl-body');
+  if(!S.gates.length){body.innerHTML='<div style="padding:8px;font-size:10px;color:#52525b">No gates placed</div>';return}
+  S.gates.forEach(g=>{const d=getDef(g.type);const b=document.createElement('button');b.className='gl-item';b.innerHTML=`<span class="gl-dot" style="background:${d.color}"></span><span class="lbl">${d.label}</span><span class="pos">${g.x|0},${g.y|0}</span>`;b.onclick=()=>{S.pan={x:-g.x*S.zoom+300,y:-g.y*S.zoom+200};S.selectedGateId=g.id;renderGates();renderHUD()};body.appendChild(b)});
+}
+function renderMinimap(){
+  const inner=$('mm-inner');if(!inner)return;
+  const W=152,H=110;
+  let bounds;
+  if(!S.gates.length)bounds={minX:0,minY:0,maxX:1000,maxY:700};
+  else{let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;S.gates.forEach(g=>{const d=getDef(g.type);minX=Math.min(minX,g.x);minY=Math.min(minY,g.y);maxX=Math.max(maxX,g.x+d.w);maxY=Math.max(maxY,g.y+d.h)});bounds={minX,minY,maxX:maxX+50,maxY:maxY+50}}
+  const sx=W/(bounds.maxX-bounds.minX),sy=H/(bounds.maxY-bounds.minY);const sc=Math.min(sx,sy);
+  const cw=canvasWrap.clientWidth||800,ch=canvasWrap.clientHeight||600;
+  const vx=-S.pan.x/S.zoom,vy=-S.pan.y/S.zoom,vw=cw/S.zoom,vh=ch/S.zoom;
+  let dots='';
+  S.gates.forEach(g=>{const d=getDef(g.type);dots+=`<div style="position:absolute;left:${(g.x-bounds.minX)*sc}px;top:${(g.y-bounds.minY)*sc}px;width:${Math.max(2,d.w*sc)}px;height:${Math.max(2,d.h*sc)}px;background:${d.color};opacity:.8"></div>`});
+  dots+=`<div id="mm-view" style="left:${(vx-bounds.minX)*sc}px;top:${(vy-bounds.minY)*sc}px;width:${vw*sc}px;height:${vh*sc}px"></div>`;
+  inner.innerHTML=dots;
+  inner.onmousedown=e=>{const r=inner.getBoundingClientRect();const jx=(e.clientX-r.left)/sc+bounds.minX;const jy=(e.clientY-r.top)/sc+bounds.minY;S.pan={x:-(jx*S.zoom-cw/2),y:-(jy*S.zoom-ch/2)};renderGates();renderWires();renderHUD()};
+}
+
+/* ===================== Tick ===================== */
+let tickTimer=null;
+function tick(){
+  const g=S.gates,w=S.wires;
+  if(!g.length){S.outputs={};S.states={};return}
+  const prev={};g.forEach(gate=>{prev[gate.id]={...(gate.state||{}),...(S.states[gate.id]||{})}});
+  const {outputs:out,states:st}=simulate(g,w,prev);
+  g.forEach(gate=>{if(gate.type==='TERMINAL')st[gate.id]={...st[gate.id],ctx:{gates:g.length}}});
+  S.outputs=out;S.states=st;
+  updateSignals();
+  renderToolbar();
+}
+function startTick(){if(tickTimer)clearInterval(tickTimer);if(S.running)tickTimer=setInterval(tick,80)}
+
+/* ===================== Interactions ===================== */
+let dragRef=null;
+function onCanvasDown(e){
+  if(e.button===1||(e.button===0&&e.altKey)||(S.selectedType===null&&e.target===e.currentTarget)){
+    dragRef={mode:'pan',sx:e.clientX,sy:e.clientY,px:S.pan.x,py:S.pan.y};return
+  }
+  if(S.selectedType&&e.target===e.currentTarget){placeGate(S.selectedType,toCanvas(e.clientX,e.clientY))}
+}
+function placeGate(typeKey,pos){
+  if(typeKey.startsWith('CUSTOM:')){
+    const cg=S.customGates.find(c=>c.id===typeKey.slice(7));if(!cg)return;
+    const idMap={};const ng=cg.gates.map(gg=>{const ni=uid(gg.type.toLowerCase());idMap[gg.id]=ni;return{...gg,id:ni,x:pos.x+gg.x-cg.gates[0].x,y:pos.y+gg.y-cg.gates[0].y,state:{}}});
+    const nw=cg.wires.map(w=>({id:uid('w'),from:{gate:idMap[w.from.gate],port:w.from.port},to:{gate:idMap[w.to.gate],port:w.to.port}}));
+    S.gates=[...S.gates,...ng];S.wires=[...S.wires,...nw];flash(`Placed custom: ${cg.name}`)
+  }else{
+    const id=uid(typeKey.toLowerCase());const def=getDef(typeKey);
+    const init=def.render==='led'?{color:'#22c55e'}:def.render==='text'?{text:'HELLO'}:def.render==='recv'?{target:5}:{};
+    S.gates=[...S.gates,{id,type:typeKey,x:Math.round(pos.x),y:Math.round(pos.y),state:init}]
+  }
+  renderGates();renderWires();renderToolbar();renderHUD()
+}
+function onGateDown(e,gate){
+  e.stopPropagation();
+  if(e.shiftKey){const n=new Set(S.multiSelect);n.has(gate.id)?n.delete(gate.id):n.add(gate.id);S.multiSelect=n;renderGates();return}
+  S.selectedGateId=gate.id;S.multiSelect=new Set();
+  const c=toCanvas(e.clientX,e.clientY);dragRef={mode:'gate',id:gate.id,ox:c.x-gate.x,oy:c.y-gate.y};
+  renderGates();renderHUD()
+}
+function onPortDown(e,gate,kind,port){
+  e.stopPropagation();
+  const def=getDef(gate.type);const p=portPos(def,kind==='in'?'in':'out',port);
+  const pos={x:gate.x+p.x,y:gate.y+p.y};
+  if(kind==='out'){S.pending={from:{gate:gate.id,port},fromPos:pos,toPos:pos};renderWires();renderHUD()}
+  else if(S.pending){S.wires=S.wires.filter(w=>!(w.to.gate===gate.id&&w.to.port===port));S.wires=[...S.wires,{id:uid('w'),from:S.pending.from,to:{gate:gate.id,port}}];S.pending=null;renderWires();renderHUD()}
+}
+function onDeleteGate(gate){S.gates=S.gates.filter(g=>g.id!==gate.id);S.wires=S.wires.filter(w=>w.from.gate!==gate.id&&w.to.gate!==gate.id);S.selectedGateId=null;delete termStore[gate.id];renderGates();renderWires();renderToolbar();renderHUD()}
+function onConfigure(gate){
+  const def=getDef(gate.type);
+  if(def.render==='led'){const c=prompt('LED color (name or hex):',gate.state&&gate.state.color||'green');if(c){gate.state={...gate.state,color:c};renderGates()}}
+  else if(def.render==='text'){const t=prompt('Display text:',gate.state&&gate.state.text||'TEXT');if(t!==null){gate.state={...gate.state,text:t};renderGates()}}
+  else if(def.render==='recv'){const n=parseInt(prompt('Target number (0-15):',String(gate.state&&gate.state.target??5)),10);if(!isNaN(n)){gate.state={...gate.state,target:n};renderGates()}}
+  else if(def.render==='eeprom'){const a=parseInt(prompt('Address (0-15):',String(gate.state&&gate.state.addr??0)),10);if(!isNaN(a)){gate.state={...gate.state,addr:a};renderGates()}}
+}
+function onKeyboard(gate){S.activeKeyboard=gate.id;flash('Keyboard active — type to send codes (Esc to stop)');renderHUD()}
+function onToggle(gate){gate.state={...gate.state,on:gate.state&&gate.state.on?0:1};renderGates()}
+function onGroup(){
+  if(S.multiSelect.size<2){flash('Shift-click 2+ gates to group');return}
+  const sel=S.gates.filter(g=>S.multiSelect.has(g.id));
+  const minX=Math.min(...sel.map(g=>g.x)),minY=Math.min(...sel.map(g=>g.y));
+  const relGates=sel.map(g=>({id:g.id,type:g.type,x:g.x-minX,y:g.y-minY,state:{}}));
+  const relWires=S.wires.filter(w=>S.multiSelect.has(w.from.gate)&&S.multiSelect.has(w.to.gate));
+  const name=prompt('Name this component:','Custom '+(S.customGates.length+1));if(!name)return;
+  S.customGates=[...S.customGates,{id:uid('custom'),name,gates:relGates,wires:relWires}];
+  S.multiSelect=new Set();flash(`Saved component: ${name}`);renderPalette()
+}
+function onNote(){S.notes=[...S.notes,{id:uid('note'),x:-S.pan.x/S.zoom+40,y:-S.pan.y/S.zoom+40,w:140,text:''}];renderGates()}
+function onSave(){localStorage.setItem('logic_lab_save',JSON.stringify({gates:S.gates,wires:S.wires,notes:S.notes,customGates:S.customGates,v:2}));flash('Saved to browser')}
+function onLoad(){const s=localStorage.getItem('logic_lab_save');if(!s){flash('No save found');return}const d=JSON.parse(s);S.gates=d.gates||[];S.wires=d.wires||[];S.notes=d.notes||[];S.customGates=d.customGates||[];renderGates();renderWires();renderToolbar();renderHUD();renderPalette();flash('Loaded save')}
+function onExport(){const blob=new Blob([JSON.stringify({gates:S.gates,wires:S.wires,notes:S.notes,customGates:S.customGates,v:2},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='logic-circuit.json';a.click();flash('Exported JSON')}
+function onImport(file){const r=new FileReader();r.onload=()=>{const d=JSON.parse(r.result);S.gates=d.gates||[];S.wires=d.wires||[];S.notes=d.notes||[];S.customGates=d.customGates||[];renderGates();renderWires();renderToolbar();renderHUD();renderPalette();flash('Imported circuit')};r.readAsText(file)}
+function onClear(){if(confirm('Clear the whole canvas?')){S.gates=[];S.wires=[];S.notes=[];S.selectedGateId=null;Object.keys(termStore).forEach(k=>delete termStore[k]);renderGates();renderWires();renderToolbar();renderHUD()}}
+function showTemplates(){$('modal').style.display='flex';const body=$('modal-body');body.innerHTML='';TEMPLATES.forEach(t=>{const b=document.createElement('button');b.className='tpl';b.innerHTML=`<div class="t-name">${t.name}</div><div class="t-desc">${t.desc}</div>`;b.onclick=()=>{const built=t.build();S.gates=built.gates;S.wires=built.wires;S.notes=[];S.pan={x:40,y:20};S.zoom=1;Object.keys(termStore).forEach(k=>delete termStore[k]);renderGates();renderWires();renderToolbar();renderHUD();$('modal').style.display='none';flash(`Loaded: ${t.name}`)};body.appendChild(b)})}
+function showPalette(){$('palette').style.display='flex';$('palette-toggle').style.display='none';renderPalette()}
+
+/* ===================== Global events ===================== */
+canvas.addEventListener('mousedown',onCanvasDown);
+canvas.addEventListener('wheel',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();const cx=e.clientX-r.left,cy=e.clientY-r.top;const nz=Math.max(0.3,Math.min(3,S.zoom*(e.deltaY<0?1.1:0.9)));S.pan={x:cx-(cx-S.pan.x)*(nz/S.zoom),y:cy-(cy-S.pan.y)*(nz/S.zoom)};S.zoom=nz;renderGates();renderWires();renderHUD()},{passive:false});
+document.addEventListener('mousemove',e=>{
+  if(!dragRef)return;
+  if(dragRef.mode==='pan'){S.pan={x:dragRef.px+(e.clientX-dragRef.sx),y:dragRef.py+(e.clientY-dragRef.sy)};renderGates();renderWires();renderHUD()}
+  else if(dragRef.mode==='gate'){const c=toCanvas(e.clientX,e.clientY);S.gates=S.gates.map(g=>g.id===dragRef.id?{...g,x:Math.round(c.x-dragRef.ox),y:Math.round(c.y-dragRef.oy)}:g);renderGates()}
+});
+document.addEventListener('mouseup',()=>{dragRef=null});
+document.addEventListener('mousemove',e=>{if(!S.pending)return;const c=toCanvas(e.clientX,e.clientY);S.pending.toPos=c;renderWires()});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){S.pending=null;S.activeKeyboard=null;S.selectedType=null;canvas.classList.remove('placing');renderWires();renderHUD()}
+  if(S.activeKeyboard&&e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA'){
+    const code=e.key.length===1?e.key.charCodeAt(0):0;
+    if(code){S.gates=S.gates.map(g=>g.id===S.activeKeyboard?{...g,state:{...(S.states[g.id]||{}),code}}:g);renderGates()}
+  }
+});
+$('palette-close').onclick=()=>{$('palette').style.display='none';$('palette-toggle').style.display='block'};
+$('palette-toggle').onclick=showPalette;
+$('modal-close').onclick=()=>{$('modal').style.display='none'};
+$('modal').onclick=e=>{if(e.target===$('modal'))$('modal').style.display='none'};
+
+/* ===================== Init ===================== */
+renderToolbar();renderPalette();renderGates();renderWires();renderHUD();
+// starter circuit
+const st0=TEMPLATES.find(x=>x.name==='Simple AND Test');if(st0){const b=st0.build();S.gates=b.gates;S.wires=b.wires;renderGates();renderWires();renderToolbar();renderHUD()}
+startTick();
+window.addEventListener('resize',()=>{renderGates();renderWires();renderHUD()});
+</script>
+</body>
+</html>
